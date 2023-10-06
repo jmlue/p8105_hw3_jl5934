@@ -16,12 +16,12 @@ data("brfss_smart2010")
 
 ## Describing the dataset
 
-* There are `r nrows(instacart)` rows and `r ncol(instacart)` columns in the `instacart` dataframe.
+* There are `r nrow(instacart)` rows and `r ncol(instacart)` columns in the `instacart` dataframe.
 
 * The variables included are `r names(instacart)`.  
 
 
-* There are `r length(unique(instacart[["aisle_id"]]` aisles in the dataframe. 
+* There are `r length(unique(instacart[["aisle_id"]]))` aisles in the dataframe. 
 
 ```{r}
 instacart %>%
@@ -129,4 +129,12 @@ p + facet_grid(rows = vars(year))
     
 ```
 
+
+# Problem 3
+
+```{r}
+accel.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_accel.csv")
+
+covar.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_covar.csv")
+```
 
