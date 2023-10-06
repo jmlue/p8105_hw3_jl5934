@@ -39,8 +39,8 @@ instacart %>%
   summarize(n_obs = n()) %>%
   filter(n_obs > 10000) %>%
   arrange(desc(n_obs)) %>%
-  ggplot(aes(x = aisle_id, y = n_obs)) +
-  geom_point()
+  ggplot(aes(x = aisle_id)) +
+  geom_histogram()
 ```
  
 ```{r}
@@ -67,10 +67,66 @@ instacart %>%
 # Problem 2
 
 ```{r}
-brfss_smart2010 %>%
+BRFSS <- brfss_smart2010 %>%
   janitor::clean_names() %>%
-  filter(topic == "Overall Health")#, response == c("Excellent",)) %>%
+  filter(topic == "Overall Health") %>%
+  mutate(response = response %>%
+           fct_recode("Poor" = "Poor", "Fair" = "Fair", "Good" = "Good", "Very good" = "Very good", "Excellent" = "Excellent")) 
+```
 
+```{r}
+BRFSS %>%
+  filter(year == 2002) %>%
+  group_by(locationabbr) %>%
+  summarize(n_obs = n()) %>%
+  filter(n_obs > 7)
+```
+
+There are 36 states with ore than 7 observations in 2002.
+
+```{r}
+BRFSS %>%
+  filter(year == 2010) %>%
+  group_by(locationabbr) %>%
+  summarize(n_obs = n()) %>%
+  filter(n_obs > 7)
+```
+
+There are 45 states with ore than 7 observations in 2010.
+
+```{r}
+BRFSS %>%
+  janitor::clean_names() %>%
+  filter(response == "Excellent") %>%
+  group_by(locationabbr, locationdesc) %>%
+  mutate(mean_DV = mean(data_value)) %>%
+  select(year, locationabbr, locationdesc, mean_DV) %>%
+  ggplot(aes(x = year, y = mean_DV, group = locationabbr)) + 
+  geom_line(aes(color=locationabbr))
+  
+BRFSS %>%
+  janitor::clean_names() %>%
+  filter(response == "Excellent") %>%
+  group_by(locationabbr) %>%
+  mutate(mean_DV = mean(data_value)) %>%
+  select(year, locationabbr, mean_DV) %>%
+  ggplot(aes(x = year, y = mean_DV, group = locationabbr)) + 
+  geom_line(aes(color=locationabbr))
   
 ```
+
+```{r}
+p <- brfss_smart2010 %>%
+  janitor::clean_names() %>%
+  filter(year == c("2006", "2010"), locationabbr == "NY", topic == "Overall Health") %>%
+  group_by(response, locationdesc) %>%
+  mutate(mean_DV = mean(data_value)) %>%
+  ggplot(aes(x= response, y = mean_DV, color = locationdesc)) + 
+  geom_point() 
+
+p + facet_grid(rows = vars(year))
+
+    
+```
+
 
