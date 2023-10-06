@@ -167,3 +167,25 @@ q + facet_grid(rows = vars(sex))
 ```
 
 
+```{r}
+r <- accel_covar.df %>%
+  mutate(Total_activity = rowSums(.[6:1445])) %>%
+  ggplot(aes(x = age, y = Total_activity, color = sex)) +
+  geom_point() + 
+  geom_smooth(se= FALSE)
+
+r + facet_grid(rows = vars(education))
+```
+
+
+```{r}
+s <- accel_covar.df %>%
+  pivot_longer(min1:min1440,
+    names_to = "Minute", values_to = "activity") %>%
+  ggplot(aes(x = Minute, y = activity, color= sex)) +
+  geom_point() +
+  geom_smooth(se = TRUE)
+
+s + facet_grid(rows = vars(education))
+```
+
