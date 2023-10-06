@@ -133,8 +133,37 @@ p + facet_grid(rows = vars(year))
 # Problem 3
 
 ```{r}
-accel.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_accel.csv")
+accel.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_accel.csv") %>%
+  janitor::clean_names()
 
-covar.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_covar.csv")
+covar.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_covar.csv",
+                     skip = 4) %>%
+  janitor::clean_names() %>%
+  filter(age > 21) %>%
+  na.omit() %>%
+  mutate(education = as.factor(education) %>%
+           fct_recode("Less_than_HS" = "1", "HS_equivalent" = "2", "More_than_HS" = "3")) %>%
+  mutate(sex = as.factor(sex) %>% 
+           fct_recode("male" = "1", "female" = "2"))
+
+accel_covar.df <- inner_join(covar.df, accel.df, by = "seqn")
+  
+accel_covar.df %>%
+  group_by(sex, education) %>%
+  summarize(n_obs = n())
+
 ```
+
+
+Making plot of age distribution by education level and sex
+
+```{r}
+q <- accel_covar.df %>%
+  group_by(sex, education) %>%
+  ggplot(aes(x = age, color = education)) +
+  geom_boxplot()
+
+q + facet_grid(rows = vars(sex))
+```
+
 
