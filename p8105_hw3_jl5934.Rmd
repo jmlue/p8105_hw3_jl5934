@@ -1,0 +1,76 @@
+---
+title: "p8105_hw3_jl5934"
+author: "Jesus Luevano"
+date: "2023-10-06"
+output: github_document
+---
+
+```{r loading}
+library(tidyverse)
+library(p8105.datasets)
+data("instacart")
+data("brfss_smart2010")
+```
+
+# Problem 1
+
+## Describing the dataset
+
+* There are `r nrows(instacart)` rows and `r ncol(instacart)` columns in the `instacart` dataframe.
+
+* The variables included are `r names(instacart)`.  
+
+
+* There are `r length(unique(instacart[["aisle_id"]]` aisles in the dataframe. 
+
+```{r}
+instacart %>%
+  group_by(aisle_id) %>%
+  summarize(n_obs = n()) %>%
+  arrange(desc(n_obs))
+  
+```
+ 
+ * The top 3 aisles from where purchases are ordered from are Aisle 83 (150609 purchases), 24 (150473 purchases), and 123 (78493 purchases).
+ 
+```{r plot}
+instacart %>%
+  group_by(aisle_id) %>%
+  summarize(n_obs = n()) %>%
+  filter(n_obs > 10000) %>%
+  arrange(desc(n_obs)) %>%
+  ggplot(aes(x = aisle_id, y = n_obs)) +
+  geom_point()
+```
+ 
+```{r}
+instacart %>%
+  filter(aisle == c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+  group_by(aisle, product_name) %>%
+  summarize(n_obs = n()) %>%
+  arrange(desc(n_obs)) %>%
+  slice_max(order_by = n_obs, n = 3)
+```
+ 
+```{r}
+instacart %>%
+  filter(product_name == c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>%
+  summarize(Mean = mean(order_hour_of_day, na.rm = TRUE)) %>%
+  pivot_wider(
+    names_from = order_dow,
+    values_from = Mean
+  )
+```
+ 
+ 
+# Problem 2
+
+```{r}
+brfss_smart2010 %>%
+  janitor::clean_names() %>%
+  filter(topic == "Overall Health")#, response == c("Excellent",)) %>%
+
+  
+```
+
