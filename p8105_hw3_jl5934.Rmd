@@ -26,9 +26,7 @@ data("brfss_smart2010")
 ```{r rank aisles}
 instacart %>%
   group_by(aisle_id) %>%
-  summarize(n_obs = n()) %>%
-  arrange(desc(n_obs))
-  
+  summarize(n_obs = n())
 ```
  
  * The top 3 aisles from where purchases are ordered from are Aisle 83 (150609 purchases), 24 (150473 purchases), and 123 (78493 purchases).
@@ -45,12 +43,13 @@ instacart %>%
 ```
  
 ```{r}
-instacart %>%
-  filter(aisle == c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+a <- instacart %>%
+  filter(aisle == c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>% #filter(aisle == "baking ingredients" | aisle == "dog food care" | aisle == "packaged vegetables fruits")
   group_by(aisle, product_name) %>%
-  summarize(n_obs = n()) %>%
+  summarize(n_obs = n()) %>%  #count(product_name = "n_obs")
   arrange(desc(n_obs)) %>%
-  slice_max(order_by = n_obs, n = 3)
+  slice_max(order_by = n_obs, n = 3) %>%
+  knitr::kable()
 ```
  
 ```{r}
@@ -61,7 +60,8 @@ instacart %>%
   pivot_wider(
     names_from = order_dow,
     values_from = Mean
-  )
+  ) %>%
+knitr::kable()
 ```
  
  
@@ -78,22 +78,26 @@ BRFSS <- brfss_smart2010 %>%
 ```{r states with 7+ observations, 2002}
 BRFSS %>%
   filter(year == 2002) %>%
+  distinct(locationabbr, year, locationdesc) %>%
   group_by(locationabbr) %>%
   summarize(n_obs = n()) %>%
-  filter(n_obs > 7)
+  filter(n_obs >= 7) %>%
+  knitr::kable()
 ```
 
-There are 36 states with more than 7 observations in 2002.
+There are 7 states with more than 7 observations in 2002.
 
 ```{r states with 7+ observations, 2010}
 BRFSS %>%
   filter(year == 2010) %>%
+  distinct(locationabbr, year, locationdesc) %>%
   group_by(locationabbr) %>%
   summarize(n_obs = n()) %>%
-  filter(n_obs > 7)
+  filter(n_obs >= 7) %>%
+  knitr::kable()
 ```
 
-There are 45 states with ore than 7 observations in 2010.
+There are 14 states with ore than 7 observations in 2010.
 
 ```{r average state excellent}
 BRFSS %>%
@@ -102,8 +106,9 @@ BRFSS %>%
   group_by(locationabbr, year) %>% 
   mutate(mean_DV = mean(data_value)) %>%
   select(year, locationabbr, mean_DV) %>% #locastiondesc
-  ggplot(aes(x = year, y = mean_DV, group = locationabbr)) + 
-  geom_line(aes(color=locationabbr)) + 
+  ggplot(aes(x = year, y = mean_DV)) + 
+  geom_line(aes(group = locationabbr)) + 
+  geom_smooth()
   labs(x = "Year", y = "Mean Data Value", title = "Plot of mean value by year for each state", locationabbr = "State Abbreviation")  
 
 ```
@@ -117,8 +122,8 @@ brfss_smart2010 %>%
   filter(year == c("2006", "2010"), locationabbr == "NY", topic == "Overall Health") %>%
   group_by(response, locationdesc) %>%
   mutate(mean_DV = mean(data_value)) %>%
-  ggplot(aes(x= response, y = mean_DV, color = locationdesc)) + 
-  geom_point() +
+  ggplot(aes(x= locationdesc, y = mean_DV, color = response)) + 
+  geom_bar(stat = "identity") +
   labs(x = "Response Level", y = "Mean Data Value", title = "Mean data Values per response of NY counties in 2006 and 2010", locationdesc = "NY County") +
   facet_grid(rows = vars(year))
     
@@ -192,7 +197,7 @@ accel_covar.df %>%
 
   * In addition, females tend to have lower total activity levels across all education levels at younger ages, but this flips around 50 years for those with less than high school education.
 
-```{r 24-insepction by eduation and sex}
+```{r 24-insepction by eduation and sex, echo = FALSE}
 accel_covar.df %>%
   pivot_longer(min1:min1440,
     names_to = "Minute", values_to = "activity") %>%
@@ -204,6 +209,17 @@ accel_covar.df %>%
     breaks = c(0, 240, 480, 720, 960, 1200, 1440, 1680, 1920, 2160, 2400),
     labels = c("0", "240", "480", "720", "960", "1200", "1440", "1680", "1920", "2160", "2400")
   ) +
+  facet_grid(rows = vars(education))
+
+accel_covar.df %>%
+  pivot_longer(min1:min1440,
+    names_to = "minute", values_to = "activity") %>%
+  group_by(minute, sex, education) %>%
+  summarize(mean_minute_value = mean(activity)) %>%
+  #mutate(minute_mean = mean(minute)) %>%
+  ggplot(aes(x = minute, y = mean_minute_value, color= sex)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
   facet_grid(rows = vars(education))
 ```
 
