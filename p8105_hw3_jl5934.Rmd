@@ -23,7 +23,7 @@ data("brfss_smart2010")
 
 * There are `r length(unique(instacart[["aisle_id"]]))` aisles in the dataframe. 
 
-```{r}
+```{r rank aisles}
 instacart %>%
   group_by(aisle_id) %>%
   summarize(n_obs = n()) %>%
@@ -33,14 +33,15 @@ instacart %>%
  
  * The top 3 aisles from where purchases are ordered from are Aisle 83 (150609 purchases), 24 (150473 purchases), and 123 (78493 purchases).
  
-```{r plot}
+```{r plot aisles}
 instacart %>%
   group_by(aisle_id) %>%
   summarize(n_obs = n()) %>%
   filter(n_obs > 10000) %>%
   arrange(desc(n_obs)) %>%
-  ggplot(aes(x = aisle_id)) +
-  geom_histogram()
+  ggplot(aes(x = aisle_id, y = n_obs)) +
+  geom_point() +
+  xlab("Aisle ID") + ylab("Observations")
 ```
  
 ```{r}
@@ -66,7 +67,7 @@ instacart %>%
  
 # Problem 2
 
-```{r}
+```{r set up BRFSS dataframe}
 BRFSS <- brfss_smart2010 %>%
   janitor::clean_names() %>%
   filter(topic == "Overall Health") %>%
@@ -74,7 +75,7 @@ BRFSS <- brfss_smart2010 %>%
            fct_recode("Poor" = "Poor", "Fair" = "Fair", "Good" = "Good", "Very good" = "Very good", "Excellent" = "Excellent")) 
 ```
 
-```{r}
+```{r states with 7+ observations, 2002}
 BRFSS %>%
   filter(year == 2002) %>%
   group_by(locationabbr) %>%
@@ -82,9 +83,9 @@ BRFSS %>%
   filter(n_obs > 7)
 ```
 
-There are 36 states with ore than 7 observations in 2002.
+There are 36 states with more than 7 observations in 2002.
 
-```{r}
+```{r states with 7+ observations, 2010}
 BRFSS %>%
   filter(year == 2010) %>%
   group_by(locationabbr) %>%
@@ -94,45 +95,44 @@ BRFSS %>%
 
 There are 45 states with ore than 7 observations in 2010.
 
-```{r}
+```{r average state excellent}
 BRFSS %>%
   janitor::clean_names() %>%
   filter(response == "Excellent") %>%
-  group_by(locationabbr, locationdesc) %>%
+  group_by(locationabbr, year) %>% 
   mutate(mean_DV = mean(data_value)) %>%
-  select(year, locationabbr, locationdesc, mean_DV) %>%
+  select(year, locationabbr, mean_DV) %>% #locastiondesc
   ggplot(aes(x = year, y = mean_DV, group = locationabbr)) + 
-  geom_line(aes(color=locationabbr))
-  
-BRFSS %>%
-  janitor::clean_names() %>%
-  filter(response == "Excellent") %>%
-  group_by(locationabbr) %>%
-  mutate(mean_DV = mean(data_value)) %>%
-  select(year, locationabbr, mean_DV) %>%
-  ggplot(aes(x = year, y = mean_DV, group = locationabbr)) + 
-  geom_line(aes(color=locationabbr))
-  
+  geom_line(aes(color=locationabbr)) + 
+  labs(x = "Year", y = "Mean Data Value", title = "Plot of mean value by year for each state", locationabbr = "State Abbreviation")  
+
 ```
 
-```{r}
-p <- brfss_smart2010 %>%
+When plotting the mean values of `data_value` for the multiple locations of a state, by year we are able to create a sphagetti plot showing the changes from 2002-2010.
+
+
+```{r data values for NY across years}
+brfss_smart2010 %>%
   janitor::clean_names() %>%
   filter(year == c("2006", "2010"), locationabbr == "NY", topic == "Overall Health") %>%
   group_by(response, locationdesc) %>%
   mutate(mean_DV = mean(data_value)) %>%
   ggplot(aes(x= response, y = mean_DV, color = locationdesc)) + 
-  geom_point() 
-
-p + facet_grid(rows = vars(year))
-
+  geom_point() +
+  labs(x = "Response Level", y = "Mean Data Value", title = "Mean data Values per response of NY counties in 2006 and 2010", locationdesc = "NY County") +
+  facet_grid(rows = vars(year))
     
 ```
 
+We have plotted the mean `data_value` for each location within NY (Bronx County, Erie County, Kings County, Monroe County, Nassau County, New York County, Queens County, Suffolk County, & Westchester County) for the years 2006 and 2010 separately.
 
 # Problem 3
 
-```{r}
+We will import the dataframes from NHANES for the acceleratomer data `accel.df` and demographic data `covar.df`. We will filter out subhects from the demographic dataframe `covar.df` based on age (remove those less than 21 years), remove those with missing demographic data, and recode `education` and `sex` as appropriate factors. 
+
+We will then combine them by `inner_join` to select out only subjects who met the inclusion criteria from the filters placed on `covar.df`. 
+
+```{r import and prep NHANES}
 accel.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_accel.csv") %>%
   janitor::clean_names()
 
@@ -147,45 +147,63 @@ covar.df <- read_csv("p8105_hw3_jl5934_files/data/nhanes_covar.csv",
            fct_recode("male" = "1", "female" = "2"))
 
 accel_covar.df <- inner_join(covar.df, accel.df, by = "seqn")
-  
+
+```
+
+Producing a table for count of men and women in each education category.
+
+```{r table count}
 accel_covar.df %>%
   group_by(sex, education) %>%
   summarize(n_obs = n())
-
 ```
 
+* For both Males and Females, the majority had education that was more than high school equivalent. However in second rank for males was high school equivalent and last less then high school; whereas for females it was less than high school in second rank then high school equivalent in last rank.
 
-Making plot of age distribution by education level and sex
 
-```{r}
-q <- accel_covar.df %>%
+Making plot of age distribution by education level and sex.
+
+```{r plot for table count by sex/education}
+accel_covar.df %>%
   group_by(sex, education) %>%
   ggplot(aes(x = age, color = education)) +
-  geom_boxplot()
-
-q + facet_grid(rows = vars(sex))
+  geom_boxplot() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  labs(x = "Age in Years", title = "Age distribution of education levels by sex") +
+  facet_grid(rows = vars(sex))
 ```
 
 
-```{r}
-r <- accel_covar.df %>%
+Next we will make a plot that creates a new variable `Total_activity` that is the aggregate of the total accelerometer readings for the 24-hour period for an individual. 
+
+```{r Total activity plot}
+accel_covar.df %>%
   mutate(Total_activity = rowSums(.[6:1445])) %>%
   ggplot(aes(x = age, y = Total_activity, color = sex)) +
   geom_point() + 
-  geom_smooth(se= FALSE)
-
-r + facet_grid(rows = vars(education))
+  geom_smooth(se= FALSE) +
+  labs(x = "Age in years", y = "Total Activity", title = "Total activity by age, education, and sex") +
+  facet_grid(rows = vars(education))
 ```
 
+* This plot demonstrates that across all education levels and both genders, the total activity level decreases with age. 
 
-```{r}
-s <- accel_covar.df %>%
+  * For lower education levels there is a trend towards higher overall levels of total activity until about age 60 where they all have a decrease. 
+
+  * In addition, females tend to have lower total activity levels across all education levels at younger ages, but this flips around 50 years for those with less than high school education.
+
+```{r 24-insepction by eduation and sex}
+accel_covar.df %>%
   pivot_longer(min1:min1440,
     names_to = "Minute", values_to = "activity") %>%
   ggplot(aes(x = Minute, y = activity, color= sex)) +
   geom_point() +
-  geom_smooth(se = TRUE)
-
-s + facet_grid(rows = vars(education))
+  geom_smooth(aes(color = seqn), se = FALSE) + 
+  labs(x = "Minutes", y  = "Activity", title = "24hr activity time course by education level and sex") +
+  scale_x_discrete(
+    breaks = c(0, 240, 480, 720, 960, 1200, 1440, 1680, 1920, 2160, 2400),
+    labels = c("0", "240", "480", "720", "960", "1200", "1440", "1680", "1920", "2160", "2400")
+  ) +
+  facet_grid(rows = vars(education))
 ```
 
