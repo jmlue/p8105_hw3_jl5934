@@ -26,10 +26,13 @@ data("brfss_smart2010")
 ```{r rank aisles}
 instacart %>%
   group_by(aisle_id) %>%
-  summarize(n_obs = n())
+  summarize(n_obs = n()) %>%
+  arrange(desc(n_obs)) %>%
+  head(3) %>%
+  knitr::kable()
 ```
  
- * The top 3 aisles from where purchases are ordered from are Aisle 83 (150609 purchases), 24 (150473 purchases), and 123 (78493 purchases).
+ * The top 3 aisles from where purchases are ordered from are Aisle 83 (150609 purchases), 24 (150473 purchases), and 123 (78493 purchases). 
  
 ```{r plot aisles}
 instacart %>%
@@ -37,14 +40,17 @@ instacart %>%
   summarize(n_obs = n()) %>%
   filter(n_obs > 10000) %>%
   arrange(desc(n_obs)) %>%
-  ggplot(aes(x = aisle_id, y = n_obs)) +
-  geom_point() +
-  xlab("Aisle ID") + ylab("Observations")
+  ggplot(aes(x = reorder(aisle_id, n_obs), y = n_obs)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Aisle ID", 
+       y = "Number Items Ordered",
+       title = "Number of Items Ordered by Aisle if >1000 items") + 
+  theme(axis.text.x = element_text(angle = 45))
 ```
  
 ```{r}
-a <- instacart %>%
-  filter(aisle == c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>% #filter(aisle == "baking ingredients" | aisle == "dog food care" | aisle == "packaged vegetables fruits")
+instacart %>%
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>% 
   group_by(aisle, product_name) %>%
   summarize(n_obs = n()) %>%  #count(product_name = "n_obs")
   arrange(desc(n_obs)) %>%
@@ -54,9 +60,12 @@ a <- instacart %>%
  
 ```{r}
 instacart %>%
-  filter(product_name == c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>%
   group_by(product_name, order_dow) %>%
   summarize(Mean = mean(order_hour_of_day, na.rm = TRUE)) %>%
+  mutate(order_dow = case_match(
+    order_dow, 0 ~ "Sunday", 1 ~ "Monday", 2 ~ "Tuesday", 3 ~ "Wednesday", 4 ~ "Thursday", 5 ~ "Friday", 6 ~ "Saturday"
+  )) %>%
   pivot_wider(
     names_from = order_dow,
     values_from = Mean
@@ -67,69 +76,81 @@ knitr::kable()
  
 # Problem 2
 
+First we will set up our dataframe by reading in the `brfss_smart2010`, cleaning the names, filtering based on `topic` being about "Overall Health", change the variable response to a factor, rename variables to something more appropriate, and remove ones we will not need to work with.
+
 ```{r set up BRFSS dataframe}
 BRFSS <- brfss_smart2010 %>%
   janitor::clean_names() %>%
   filter(topic == "Overall Health") %>%
-  mutate(response = response %>%
-           fct_recode("Poor" = "Poor", "Fair" = "Fair", "Good" = "Good", "Very good" = "Very good", "Excellent" = "Excellent")) 
+    mutate(response = response %>%
+           fct_relevel("Poor", "Fair", "Good", "Very good", "Excellent")) %>%
+  rename(overall_health = response, county = locationdesc, state = locationabbr, response_proportion = data_value) %>%
+  select(-c(confidence_limit_high, confidence_limit_low, display_order, data_value_unit, data_value_type, data_value_footnote, data_value_footnote_symbol, class_id, topic_id, location_id, question_id, respid, geo_location))
 ```
 
 ```{r states with 7+ observations, 2002}
 BRFSS %>%
   filter(year == 2002) %>%
-  distinct(locationabbr, year, locationdesc) %>%
-  group_by(locationabbr) %>%
+  distinct(state, year, county) %>%
+  group_by(state) %>%
   summarize(n_obs = n()) %>%
   filter(n_obs >= 7) %>%
   knitr::kable()
 ```
 
-There are 7 states with more than 7 observations in 2002.
+* There are 7 states with more than 7 observations in 2002.
 
 ```{r states with 7+ observations, 2010}
 BRFSS %>%
   filter(year == 2010) %>%
-  distinct(locationabbr, year, locationdesc) %>%
-  group_by(locationabbr) %>%
+  distinct(state, year, county) %>%
+  group_by(state) %>%
   summarize(n_obs = n()) %>%
   filter(n_obs >= 7) %>%
   knitr::kable()
 ```
 
-There are 14 states with ore than 7 observations in 2010.
+* There are 14 states with ore than 7 observations in 2010.
 
 ```{r average state excellent}
 BRFSS %>%
   janitor::clean_names() %>%
-  filter(response == "Excellent") %>%
-  group_by(locationabbr, year) %>% 
-  mutate(mean_DV = mean(data_value)) %>%
-  select(year, locationabbr, mean_DV) %>% #locastiondesc
-  ggplot(aes(x = year, y = mean_DV)) + 
-  geom_line(aes(group = locationabbr)) + 
-  geom_smooth()
-  labs(x = "Year", y = "Mean Data Value", title = "Plot of mean value by year for each state", locationabbr = "State Abbreviation")  
+  filter(overall_health == "Excellent") %>%
+  group_by(state, year) %>% 
+  mutate(mean_response_prop = mean(response_proportion)) %>%
+  select(year, state, mean_response_prop) %>%
+  ggplot(aes(x = year, y = mean_response_prop)) + 
+  geom_line(aes(color = state)) + 
+  geom_smooth(method = "loess") +
+  labs(x = "Year", y = "Mean Proportion Response", title = "Plot of mean proportion who responded Excellent to Overall Health by state over time")  
 
 ```
 
-When plotting the mean values of `data_value` for the multiple locations of a state, by year we are able to create a sphagetti plot showing the changes from 2002-2010.
+When plotting the mean values of `response_proportion` for the multiple locations of a state, by year we are able to create a spaghetti plot showing the changes from 2002-2010. 
+
+* When looking at the general trends across all the states, there does seem to be a downward proportion of those responding 'Excellent' that plateaus around 2005-2006 at 22%. 
 
 
 ```{r data values for NY across years}
-brfss_smart2010 %>%
+BRFSS %>%
   janitor::clean_names() %>%
-  filter(year == c("2006", "2010"), locationabbr == "NY", topic == "Overall Health") %>%
-  group_by(response, locationdesc) %>%
-  mutate(mean_DV = mean(data_value)) %>%
-  ggplot(aes(x= locationdesc, y = mean_DV, color = response)) + 
+  filter(year %in% c("2006", "2010"), state == "NY", topic == "Overall Health") %>%
+  group_by(overall_health, county, year) %>%
+  mutate(mean_response_prop = mean(response_proportion)) %>%
+  ggplot(aes(x= county, y = mean_response_prop, fill = overall_health)) + 
   geom_bar(stat = "identity") +
-  labs(x = "Response Level", y = "Mean Data Value", title = "Mean data Values per response of NY counties in 2006 and 2010", locationdesc = "NY County") +
+  labs(x = "Overall Health Respones Level", y = "Proportion of Response", title = "Porportion of Respones to Overall health Question Among NY Counties for the years 2006 & 2010") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.9)) +
   facet_grid(rows = vars(year))
+  #viridis::scale_color_viridis(option = "magma") 
     
 ```
 
 We have plotted the mean `data_value` for each location within NY (Bronx County, Erie County, Kings County, Monroe County, Nassau County, New York County, Queens County, Suffolk County, & Westchester County) for the years 2006 and 2010 separately.
+
+* Of note there were several counties without information in 2006: Bronx, Erie, Monroe. 
+
+* In general there seems to be a trend towards ore poor health, and lower excellent health over time.
 
 # Problem 3
 
@@ -160,7 +181,8 @@ Producing a table for count of men and women in each education category.
 ```{r table count}
 accel_covar.df %>%
   group_by(sex, education) %>%
-  summarize(n_obs = n())
+  summarize(n_obs = n()) %>%
+  knitr::kable()
 ```
 
 * For both Males and Females, the majority had education that was more than high school equivalent. However in second rank for males was high school equivalent and last less then high school; whereas for females it was less than high school in second rank then high school equivalent in last rank.
@@ -171,12 +193,16 @@ Making plot of age distribution by education level and sex.
 ```{r plot for table count by sex/education}
 accel_covar.df %>%
   group_by(sex, education) %>%
-  ggplot(aes(x = age, color = education)) +
+  ggplot(aes(x = age, fill = education)) +
   geom_boxplot() +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
   labs(x = "Age in Years", title = "Age distribution of education levels by sex") +
   facet_grid(rows = vars(sex))
 ```
+
+* For education level matched groups, the females seem to have a lower median age for more than HS, higher for HS equivalent, and very slightly lower age for less than HS. 
+
+* In both gender groups, there is a much small distribution of ages for the less than HS group compared to the other two. In addition, in both groups, the lowest age median is in the ore than high school (for males the highest is less than HS, and for females the highest is HS equivalent)
 
 
 Next we will make a plot that creates a new variable `Total_activity` that is the aggregate of the total accelerometer readings for the 24-hour period for an individual. 
@@ -188,7 +214,8 @@ accel_covar.df %>%
   geom_point() + 
   geom_smooth(se= FALSE) +
   labs(x = "Age in years", y = "Total Activity", title = "Total activity by age, education, and sex") +
-  facet_grid(rows = vars(education))
+  scale_color_hue(direction = -1) +
+  facet_grid(education ~ .)
 ```
 
 * This plot demonstrates that across all education levels and both genders, the total activity level decreases with age. 
@@ -200,26 +227,17 @@ accel_covar.df %>%
 ```{r 24-insepction by eduation and sex, echo = FALSE}
 accel_covar.df %>%
   pivot_longer(min1:min1440,
-    names_to = "Minute", values_to = "activity") %>%
-  ggplot(aes(x = Minute, y = activity, color= sex)) +
-  geom_point() +
-  geom_smooth(aes(color = seqn), se = FALSE) + 
-  labs(x = "Minutes", y  = "Activity", title = "24hr activity time course by education level and sex") +
-  scale_x_discrete(
-    breaks = c(0, 240, 480, 720, 960, 1200, 1440, 1680, 1920, 2160, 2400),
-    labels = c("0", "240", "480", "720", "960", "1200", "1440", "1680", "1920", "2160", "2400")
-  ) +
-  facet_grid(rows = vars(education))
-
-accel_covar.df %>%
-  pivot_longer(min1:min1440,
     names_to = "minute", values_to = "activity") %>%
   group_by(minute, sex, education) %>%
   summarize(mean_minute_value = mean(activity)) %>%
-  #mutate(minute_mean = mean(minute)) %>%
   ggplot(aes(x = minute, y = mean_minute_value, color= sex)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  facet_grid(rows = vars(education))
+  geom_point(aes(alpha = 0.8)) +
+  geom_smooth(se = FALSE) + 
+  labs(y = "Mean Activity Value", title = "Mean activity value per minute by education level and sex") +
+  scale_color_hue(direction = -1) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.9, size = 0.5)) +
+  facet_grid(education ~ .) 
+  
 ```
 
+* Looking at the plot demonstrates that there is generally a decrease in activity in the midday, and among all the education groups and both genders there seem to be two separate groups that are either diurnal or nocturnal in their activities. 
