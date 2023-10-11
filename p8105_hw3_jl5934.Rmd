@@ -110,7 +110,7 @@ BRFSS %>%
   knitr::kable()
 ```
 
-* There are 14 states with ore than 7 observations in 2010.
+* There are 14 states with more than 7 observations in 2010.
 
 ```{r average state excellent}
 BRFSS %>%
@@ -142,7 +142,6 @@ BRFSS %>%
   labs(x = "Overall Health Respones Level", y = "Proportion of Response", title = "Porportion of Respones to Overall health Question Among NY Counties for the years 2006 & 2010") +
   theme(axis.text.x = element_text(angle = 45, hjust = 0.9)) +
   facet_grid(rows = vars(year))
-  #viridis::scale_color_viridis(option = "magma") 
     
 ```
 
@@ -150,11 +149,13 @@ We have plotted the mean `data_value` for each location within NY (Bronx County,
 
 * Of note there were several counties without information in 2006: Bronx, Erie, Monroe. 
 
-* In general there seems to be a trend towards ore poor health, and lower excellent health over time.
+* In general there seems to be a trend towards more 'Poor' health, and lower 'Excellent' health over time.
+
+* Overall the majority of responess are within the 'Good' and 'Very Good' categories.
 
 # Problem 3
 
-We will import the dataframes from NHANES for the acceleratomer data `accel.df` and demographic data `covar.df`. We will filter out subhects from the demographic dataframe `covar.df` based on age (remove those less than 21 years), remove those with missing demographic data, and recode `education` and `sex` as appropriate factors. 
+We will import the dataframes from NHANES for the acceleratomer data `accel.df` and demographic data `covar.df`. We will filter out subjects from the demographic dataframe `covar.df` based on age (remove those less than 21 years), remove those with missing demographic data, and recode `education` and `sex` as appropriate factors. 
 
 We will then combine them by `inner_join` to select out only subjects who met the inclusion criteria from the filters placed on `covar.df`. 
 
@@ -185,10 +186,10 @@ accel_covar.df %>%
   knitr::kable()
 ```
 
-* For both Males and Females, the majority had education that was more than high school equivalent. However in second rank for males was high school equivalent and last less then high school; whereas for females it was less than high school in second rank then high school equivalent in last rank.
+* For both Males and Females, the majority had education that was more than high school equivalent. However in second rank for Males was high school equivalent and last less then high school; whereas for Females it was less than high school in second rank then high school equivalent in last rank.
 
 
-Making plot of age distribution by education level and sex.
+Next we will make a plot of age distribution by education level and sex.
 
 ```{r plot for table count by sex/education}
 accel_covar.df %>%
@@ -202,15 +203,15 @@ accel_covar.df %>%
 
 * For education level matched groups, the females seem to have a lower median age for more than HS, higher for HS equivalent, and very slightly lower age for less than HS. 
 
-* In both gender groups, there is a much small distribution of ages for the less than HS group compared to the other two. In addition, in both groups, the lowest age median is in the ore than high school (for males the highest is less than HS, and for females the highest is HS equivalent)
+* In both gender groups, there is a much small distribution of ages for the less than HS group compared to the other two. In addition, in both groups, the lowest age median is in the more than high school (for males the highest is less than HS, and for females the highest is HS equivalent)
 
 
 Next we will make a plot that creates a new variable `Total_activity` that is the aggregate of the total accelerometer readings for the 24-hour period for an individual. 
 
 ```{r Total activity plot}
 accel_covar.df %>%
-  mutate(Total_activity = rowSums(.[6:1445])) %>%
-  ggplot(aes(x = age, y = Total_activity, color = sex)) +
+  mutate(total_activity = rowSums(.[6:1445])) %>%
+  ggplot(aes(x = age, y = total_activity, color = sex)) +
   geom_point() + 
   geom_smooth(se= FALSE) +
   labs(x = "Age in years", y = "Total Activity", title = "Total activity by age, education, and sex") +
@@ -227,7 +228,10 @@ accel_covar.df %>%
 ```{r 24-insepction by eduation and sex, echo = FALSE}
 accel_covar.df %>%
   pivot_longer(min1:min1440,
-    names_to = "minute", values_to = "activity") %>%
+    names_to = "minute", 
+    names_prefix = "min",
+    values_to = "activity",) %>%
+  mutate(minute = as.numeric(minute)) %>%
   group_by(minute, sex, education) %>%
   summarize(mean_minute_value = mean(activity)) %>%
   ggplot(aes(x = minute, y = mean_minute_value, color= sex)) +
@@ -240,4 +244,8 @@ accel_covar.df %>%
   
 ```
 
-* Looking at the plot demonstrates that there is generally a decrease in activity in the midday, and among all the education groups and both genders there seem to be two separate groups that are either diurnal or nocturnal in their activities. 
+* Looking at the plot, there are conserved trends of activity that starts to rise and plateau at around 7AM
+
+* For every education level, males seem to have the higher average activity earlier one, but this trend reverses near 4AM and persists except for the less than high school education group that has some oscillations in which group has higher activity. 
+
+* Amongst the groups, less than HS education tends to have slightly higher average activity levels than the other groups, and more than HS the least particularly for males. 
